@@ -1,0 +1,357 @@
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const analyzeProductByName = async (productName) => {
+  try {
+    const prompt = `
+Ти експерт з харчування. Проаналізуй продукт: "${productName}"
+
+Надай точну інформацію про харчову цінність на 100 грамів продукту у форматі JSON:
+
+{
+  "name": "точна назва продукту українською",
+  "category": "одна з: vegetables, fruits, meat, fish, dairy, grains, legumes, nuts, sweets, beverages, other",
+  "nutritionPer100g": {
+    "calories": число (ккал),
+    "protein": число (г),
+    "fats": число (г),
+    "carbs": число (г),
+    "fiber": число (г)
+  },
+  "description": "короткий опис продукту та його корисних властивостей"
+}
+
+Відповідай ТІЛЬКИ валідним JSON, без додаткового тексту.
+`;
+
+    // Используем gemini-2.5-flash (быстрая и бесплатная модель)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    const result = await model.generateContent(prompt);
+    let response = result.response.text();
+    
+    // Убираем markdown форматирование если есть
+    response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Пытаемся найти JSON в ответе
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('Gemini response:', response);
+      throw new Error('Failed to parse AI response - no JSON found');
+    }
+
+    const productData = JSON.parse(jsonMatch[0]);
+    return {
+      success: true,
+      data: productData
+    };
+  } catch (error) {
+    console.error('Gemini API Error (analyzeProductByName):', error.message);
+    if (error.stack) {
+      console.error('Stack:', error.stack);
+    }
+    return {
+      success: false,
+      message: 'Не вдалося розпізнати продукт. Спробуйте інакше сформулювати назву.'
+    };
+  }
+};
+
+const analyzeDailyDiet = async (dailyLog, meals, user) => {
+  try {
+    const mealsList = meals.map(meal => ({
+      type: meal.mealType,
+      name: meal.name,
+      items: meal.items.map(item => ({
+        product: item.product.name,
+        amount: item.amount,
+        nutrition: item.nutrition
+      })),
+      total: meal.totalNutrition
+    }));
+
+    const prompt = `
+Ти професійний дієтолог. Проаналізуй денний раціон користувача.
+
+**Інформація про користувача:**
+- Вік: ${user.profile.age} років
+- Стать: ${user.profile.gender === 'male' ? 'чоловік' : 'жінка'}
+- Вага: ${user.profile.weight} кг
+- Зріст: ${user.profile.height} см
+- Рівень активності: ${user.profile.activityLevel}
+- Мета: ${user.profile.goal}
+
+**Денні норми:**
+- Калорії: ${dailyLog.dailyNorms.calories} ккал
+- Білки: ${dailyLog.dailyNorms.protein} г
+- Жири: ${dailyLog.dailyNorms.fats} г
+- Вуглеводи: ${dailyLog.dailyNorms.carbs} г
+
+**Спожито за день:**
+- Калорії: ${dailyLog.totalNutrition.calories} ккал (${dailyLog.progress.caloriesPercent}%)
+- Білки: ${dailyLog.totalNutrition.protein} г (${dailyLog.progress.proteinPercent}%)
+- Жири: ${dailyLog.totalNutrition.fats} г (${dailyLog.progress.fatsPercent}%)
+- Вуглеводи: ${dailyLog.totalNutrition.carbs} г (${dailyLog.progress.carbsPercent}%)
+
+**Прийоми їжі:**
+${JSON.stringify(mealsList, null, 2)}
+
+Надай детальний аналіз у форматі JSON:
+
+{
+  "overallAssessment": "загальна оцінка раціону (1-2 речення)",
+  "strengths": ["позитивні моменти", "що добре"],
+  "weaknesses": ["що потрібно покращити", "недоліки"],
+  "macroBalance": {
+    "assessment": "оцінка балансу БЖВ",
+    "recommendations": ["конкретні рекомендації"]
+  },
+  "mealTiming": {
+    "assessment": "оцінка розподілу їжі протягом дня",
+    "recommendations": ["рекомендації по часу прийомів їжі"]
+  },
+  "missingNutrients": ["які нутрієнти можуть бути в дефіциті"],
+  "specificSuggestions": {
+    "toAdd": ["конкретні продукти що додати"],
+    "toReduce": ["що зменшити або виключити"],
+    "alternatives": ["здоровіші альтернативи до поточних продуктів"]
+  },
+  "motivationalMessage": "мотивуюче повідомлення"
+}
+
+Відповідай ТІЛЬКИ валідним JSON українською мовою, без додаткового тексту.
+`;
+
+    // Используем gemini-2.5-flash (быстрая и бесплатная модель)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    const result = await model.generateContent(prompt);
+    let response = result.response.text();
+    
+    // Убираем markdown форматирование если есть
+    response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Пытаемся найти JSON в ответе
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('Gemini response:', response);
+      throw new Error('Failed to parse AI response - no JSON found');
+    }
+
+    const analysis = JSON.parse(jsonMatch[0]);
+    return {
+      success: true,
+      data: analysis
+    };
+  } catch (error) {
+    console.error('Gemini API Error (analyzeDailyDiet):', error.message);
+    if (error.stack) {
+      console.error('Stack:', error.stack);
+    }
+    if (error.message && error.message.includes('response')) {
+      console.error('Response text:', error.response?.text || 'N/A');
+    }
+    return {
+      success: false,
+      message: 'Не вдалося проаналізувати раціон. Спробуйте пізніше.'
+    };
+  }
+};
+
+const analyzeWeeklyDiet = async (weeklyLogs, user) => {
+  try {
+    const weekSummary = weeklyLogs.map(log => ({
+      date: log.date.toISOString().split('T')[0],
+      consumed: log.totalNutrition,
+      norms: log.dailyNorms,
+      progress: log.progress
+    }));
+
+    const averages = weeklyLogs.reduce((acc, log) => ({
+      calories: acc.calories + log.totalNutrition.calories,
+      protein: acc.protein + log.totalNutrition.protein,
+      fats: acc.fats + log.totalNutrition.fats,
+      carbs: acc.carbs + log.totalNutrition.carbs
+    }), { calories: 0, protein: 0, fats: 0, carbs: 0 });
+
+    const daysCount = weeklyLogs.length;
+    const avgCalories = Math.round(averages.calories / daysCount);
+    const avgProtein = Math.round(averages.protein / daysCount);
+    const avgFats = Math.round(averages.fats / daysCount);
+    const avgCarbs = Math.round(averages.carbs / daysCount);
+
+    const prompt = `
+Ти професійний дієтолог. Проаналізуй тижневий раціон користувача.
+
+**Інформація про користувача:**
+- Вік: ${user.profile.age} років
+- Стать: ${user.profile.gender === 'male' ? 'чоловік' : 'жінка'}
+- Вага: ${user.profile.weight} кг
+- Зріст: ${user.profile.height} см
+- Мета: ${user.profile.goal}
+
+**Денні норми:**
+- Калорії: ${user.dailyNorms.calories} ккал
+- Білки: ${user.dailyNorms.protein} г
+- Жири: ${user.dailyNorms.fats} г
+- Вуглеводи: ${user.dailyNorms.carbs} г
+
+**Середнє споживання за ${daysCount} днів:**
+- Калорії: ${avgCalories} ккал
+- Білки: ${avgProtein} г
+- Жири: ${avgFats} г
+- Вуглеводи: ${avgCarbs} г
+
+**Детальні дані по днях:**
+${JSON.stringify(weekSummary, null, 2)}
+
+Надай детальний тижневий аналіз у форматі JSON:
+
+{
+  "weeklyOverview": "загальний огляд тижня (2-3 речення)",
+  "consistency": {
+    "score": число від 1 до 10,
+    "assessment": "оцінка регулярності харчування",
+    "daysOnTrack": кількість днів де норми дотримано,
+    "daysOffTrack": кількість днів з відхиленнями
+  },
+  "trends": {
+    "calories": "тренд по калоріях (стабільно/зростає/знижується)",
+    "protein": "тренд по білках",
+    "patterns": ["помічені паттерни в харчуванні"]
+  },
+  "progressTowardsGoal": {
+    "assessment": "наскільки раціон відповідає меті користувача",
+    "estimatedProgress": "очікуваний прогрес (наприклад: -0.3 кг на тиждень)"
+  },
+  "keyIssues": ["основні проблеми що потрібно вирішити"],
+  "weeklyRecommendations": {
+    "priority": ["пріоритетні зміни на наступний тиждень"],
+    "mealPlan": ["загальні рекомендації по плануванню їжі"],
+    "lifestyle": ["побутові поради"]
+  },
+  "achievements": ["що вдалося добре, досягнення"],
+  "nextSteps": ["конкретні кроки на наступний тиждень"],
+  "motivationalMessage": "мотивуюче повідомлення з врахуванням прогресу"
+}
+
+Відповідай ТІЛЬКИ валідним JSON українською мовою, без додаткового тексту.
+`;
+
+    // Используем gemini-2.5-flash (быстрая и бесплатная модель)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    const result = await model.generateContent(prompt);
+    let response = result.response.text();
+    
+    // Убираем markdown форматирование если есть
+    response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Пытаемся найти JSON в ответе
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('Gemini response:', response);
+      throw new Error('Failed to parse AI response - no JSON found');
+    }
+
+    const analysis = JSON.parse(jsonMatch[0]);
+    return {
+      success: true,
+      data: analysis
+    };
+  } catch (error) {
+    console.error('Gemini API Error:', error);
+    return {
+      success: false,
+      message: 'Не вдалося проаналізувати тижневий раціон. Спробуйте пізніше.'
+    };
+  }
+};
+
+const getPersonalizedSuggestions = async (user, recentMeals) => {
+  try {
+    const mealsList = recentMeals.slice(0, 10).map(meal => ({
+      date: meal.date.toISOString().split('T')[0],
+      type: meal.mealType,
+      items: meal.items.map(item => item.product.name)
+    }));
+
+    const prompt = `
+Ти персональний дієтолог. На основі інформації про користувача та його останніх прийомів їжі, запропонуй персоналізовані рекомендації.
+
+**Користувач:**
+- Вік: ${user.profile.age} років
+- Стать: ${user.profile.gender === 'male' ? 'чоловік' : 'жінка'}
+- Вага: ${user.profile.weight} кг
+- Зріст: ${user.profile.height} см
+- Рівень активності: ${user.profile.activityLevel}
+- Мета: ${user.profile.goal}
+
+**Останні прийоми їжі:**
+${JSON.stringify(mealsList, null, 2)}
+
+Надай персоналізовані рекомендації у форматі JSON:
+
+{
+  "recommendedProducts": [
+    {
+      "name": "назва продукту",
+      "category": "категорія",
+      "reason": "чому рекомендується",
+      "whenToEat": "коли краще вживати"
+    }
+  ],
+  "mealIdeas": [
+    {
+      "mealType": "breakfast/lunch/dinner/snack",
+      "name": "назва страви",
+      "ingredients": ["інгредієнти"],
+      "benefits": "переваги цієї страви"
+    }
+  ],
+  "hydrationTips": "рекомендації по водному балансу",
+  "lifestyleAdvice": ["побутові поради для досягнення мети"]
+}
+
+Враховуй мету користувача та пропонуй реалістичні рекомендації. Відповідай ТІЛЬКИ валідним JSON українською мовою.
+`;
+
+    // Используем gemini-2.5-flash (быстрая и бесплатная модель)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await model.generateContent(prompt);
+    let response = result.response.text();
+    
+    // Убираем markdown форматирование если есть
+    response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Пытаемся найти JSON в ответе
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('Gemini response:', response);
+      throw new Error('Failed to parse AI response - no JSON found');
+    }
+
+    const suggestions = JSON.parse(jsonMatch[0]);
+    return {
+      success: true,
+      data: suggestions
+    };
+  } catch (error) {
+    console.error('Gemini API Error (getPersonalizedSuggestions):', error.message);
+    if (error.stack) {
+      console.error('Stack:', error.stack);
+    }
+    return {
+      success: false,
+      message: 'Не вдалося згенерувати рекомендації. Спробуйте пізніше.'
+    };
+  }
+};
+
+module.exports = {
+  analyzeProductByName,
+  analyzeDailyDiet,
+  analyzeWeeklyDiet,
+  getPersonalizedSuggestions
+};

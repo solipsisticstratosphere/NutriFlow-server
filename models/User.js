@@ -1,0 +1,66 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Please add a name'],
+    trim: true
+  },
+  email: {
+    type: String,
+    required: [true, 'Please add an email'],
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Please add a password'],
+    minlength: 6,
+    select: false
+  },
+  profile: {
+    age: Number,
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other']
+    },
+    weight: Number,
+    height: Number,
+    activityLevel: {
+      type: String,
+      enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'],
+      default: 'moderate'
+    },
+    goal: {
+      type: String,
+      enum: ['lose_weight', 'maintain', 'gain_weight', 'gain_muscle'],
+      default: 'maintain'
+    }
+  },
+  dailyNorms: {
+    calories: Number,
+    protein: Number,
+    fats: Number,
+    carbs: Number
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    next();
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+userSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+module.exports = mongoose.model('User', userSchema);
