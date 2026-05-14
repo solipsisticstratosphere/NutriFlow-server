@@ -1,57 +1,45 @@
-# 🥗 NutriFlow Server
+# NutriFlow Server
 
 Backend API для додатку відстеження харчування з AI аналізом дієти.
 
-## 📋 Зміст
+## Зміст
 
 - [Функціонал](#функціонал)
 - [Технології](#технології)
 - [Встановлення](#встановлення)
-- [Використання](#використання)
-- [API Документація](#api-документація)
+- [Деплой на Render](#деплой-на-render)
+- [API](#api)
 - [Тестування](#тестування)
 - [Скрипти](#скрипти)
+- [Структура проекту](#структура-проекту)
 
-## ✨ Функціонал
+## Функціонал
 
-### Основний функціонал
-- ✅ **Авторизація JWT** - Реєстрація, логін, захищені endpoints
-- ✅ **Управління продуктами** - CRUD операції, публічні/приватні продукти
-- ✅ **Прийоми їжі** - Створення, редагування, автоматичний розрахунок КБЖУ
-- ✅ **Денний лог** - Автоматичне відстеження споживання за день
-- ✅ **Аналітика** - Денна, тижнева, місячна статистика
-- ✅ **Відстеження води** - Облік споживання води (0-10000 мл/день)
-- ✅ **Відстеження ваги** - Історія зміни ваги
+- **Авторизація JWT** — реєстрація, логін, захищені endpoints
+- **Управління продуктами** — CRUD, публічні/приватні продукти, пошук
+- **Прийоми їжі** — створення з автоматичним розрахунком КБЖУ
+- **Аналітика** — денна, тижнева, місячна статистика + графіки
+- **Відстеження води та ваги** — 0–10 000 мл/день, журнал ваги
+- **AI (Groq Llama 3.1 8B)** — розпізнавання продуктів, аналіз раціону, рекомендації
+- **Кешування AI** — 24 год TTL, ~98% прискорення повторних запитів
+- **Rate limiting** — 3-рівнева система (general / auth / AI)
+- **Swagger UI** — повна документація на `/api-docs`
 
-### AI Функціонал (Hugging Face Qwen 2.5 7B)
-- 🤖 **Створення продуктів через AI** - Розпізнавання назви → КБЖУ + категорія
-- 🤖 **Персоналізовані рекомендації** - Аналіз раціону + поради
-- 🤖 **Кешування відповідей** - 97.4% швидше (24 години TTL)
-- 🤖 **Retry логіка** - Exponential backoff (3 спроби)
+## Технології
 
-### Безпека та якість
-- 🔒 **Валідація даних** - express-validator для всіх endpoints
-- 🔒 **Rate limiting** - 3-рівнева система захисту
-- 🔒 **Обробка помилок** - Централізований error handler
-- 🔒 **Індекси БД** - Оптимізація запитів
-- 🔒 **N+1 query fix** - MongoDB aggregation
+| Компонент | Технологія |
+|---|---|
+| Runtime | Node.js 22+ |
+| Framework | Express 4 |
+| База даних | MongoDB Atlas + Mongoose |
+| Авторизація | JWT + bcryptjs |
+| AI | Groq API (Llama 3.1 8B Instant) |
+| Кеш | node-cache |
+| Валідація | express-validator |
+| Rate limiting | express-rate-limit |
+| Документація | swagger-jsdoc + swagger-ui-express |
 
-### Документація
-- 📚 **Swagger UI** - Повна документація API на `/api-docs`
-- 📚 **Приклади запитів** - Для всіх endpoints
-
-## 🛠 Технології
-
-- **Node.js** + **Express** - Backend framework
-- **MongoDB** + **Mongoose** - База даних
-- **JWT** + **bcryptjs** - Авторизація
-- **Hugging Face API** - AI аналіз (Qwen 2.5 7B Instruct)
-- **node-cache** - Кешування AI відповідей
-- **express-validator** - Валідація
-- **express-rate-limit** - Rate limiting
-- **swagger-jsdoc** + **swagger-ui-express** - API документація
-
-## 📦 Встановлення
+## Встановлення
 
 ### 1. Клонувати репозиторій
 ```bash
@@ -65,45 +53,120 @@ npm install
 ```
 
 ### 3. Налаштувати .env
+
+Скопіюйте `.env.example` у `.env` та заповніть значення:
+
 ```env
-# MongoDB
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/nutriflow
+PORT=5000
+NODE_ENV=development
+
+# Основна БД
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/nutriflow?retryWrites=true&w=majority
+
+# Тестова БД (окрема база, щоб тести не торкались основних даних)
+TEST_MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/nutriflow-test?retryWrites=true&w=majority
 
 # JWT
 JWT_SECRET=your_super_secret_jwt_key_here
-JWT_EXPIRE=30d
+JWT_EXPIRE=7d
 
-# Server
-PORT=5001
-NODE_ENV=development
-
-# AI (Hugging Face)
-HUGGING_FACE_API_KEY=hf_your_api_key_here
+# AI
+GROQ_API_KEY=gsk_your_groq_api_key_here
 ```
 
-### 4. Заповнити БД тестовими даними
+> **Groq API Key** — безкоштовна реєстрація на [console.groq.com](https://console.groq.com)
+
+### 4. Заповнити тестову БД
 ```bash
 npm run db:reset
 ```
 
 ### 5. Запустити сервер
 ```bash
-npm start
-# або для development з автоматичним перезапуском:
-npm run dev
+npm start          # продакшн
+npm run dev        # розробка з auto-reload
 ```
 
-Сервер запуститься на `http://localhost:5001`
+Сервер: `http://localhost:5000`  
+Swagger: `http://localhost:5000/api-docs`
 
-## 🚀 Використання
+## Деплой на Render
 
-### Swagger документація
-Відкрийте у браузері:
-```
-http://localhost:5001/api-docs
-```
+Проект містить `render.yaml` для автоматичного конфігурування.
 
-### Приклад: Реєстрація користувача
+### Кроки
+
+1. Залийте код на GitHub
+2. Зайдіть на [render.com](https://render.com) → **New → Web Service**
+3. Підключіть репозиторій — Render підхопить `render.yaml` автоматично
+4. В **Environment** додайте змінні:
+
+| Змінна | Значення |
+|---|---|
+| `MONGODB_URI` | URI вашої Atlas БД (`nutriflow`) |
+| `JWT_SECRET` | випадковий рядок (мін. 32 символи) |
+| `GROQ_API_KEY` | ключ з console.groq.com |
+
+> `TEST_MONGODB_URI` — тільки для локальної розробки, на Render не потрібна.
+
+Після деплою:
+- API: `https://your-service.onrender.com`
+- Docs: `https://your-service.onrender.com/api-docs`
+
+> На безкоштовному плані сервіс засинає після 15 хв неактивності — перший запрос займе ~30 сек.
+
+## API
+
+Base URL: `http://localhost:5000/api`
+
+### Авторизація
+| Метод | Endpoint | Опис |
+|---|---|---|
+| POST | `/auth/register` | Реєстрація |
+| POST | `/auth/login` | Логін |
+| GET | `/auth/me` | Поточний профіль |
+| PUT | `/auth/profile` | Оновити профіль |
+
+### Продукти
+| Метод | Endpoint | Опис |
+|---|---|---|
+| GET | `/products` | Список (пагінація, пошук, фільтр) |
+| GET | `/products/:id` | Деталі |
+| POST | `/products` | Створити |
+| PUT | `/products/:id` | Оновити |
+| DELETE | `/products/:id` | Видалити |
+
+### Прийоми їжі
+| Метод | Endpoint | Опис |
+|---|---|---|
+| GET | `/meals` | Список (фільтр за датою, типом) |
+| GET | `/meals/:id` | Деталі |
+| POST | `/meals` | Створити |
+| PUT | `/meals/:id` | Оновити |
+| DELETE | `/meals/:id` | Видалити |
+
+### Аналітика
+| Метод | Endpoint | Опис |
+|---|---|---|
+| GET | `/analytics/daily` | Денний лог |
+| GET | `/analytics/weekly` | Тижнева статистика |
+| GET | `/analytics/monthly` | Місячна статистика |
+| GET | `/analytics/chart` | Дані для графіку |
+| GET | `/analytics/meals-category` | Статистика за типами прийомів |
+| PUT | `/analytics/daily` | Оновити воду / вагу / нотатки |
+
+### AI
+| Метод | Endpoint | Опис | Ліміт |
+|---|---|---|---|
+| POST | `/ai/recognize-product` | Розпізнати продукт → КБЖУ | 20/год |
+| POST | `/ai/create-product` | Розпізнати та зберегти в БД | 20/год |
+| GET | `/ai/analyze-daily` | AI аналіз денного раціону | 20/год |
+| GET | `/ai/analyze-weekly` | AI аналіз тижневого раціону | 20/год |
+| GET | `/ai/suggestions` | Персоналізовані рекомендації | 20/год |
+
+### Приклади запитів
+
+**Реєстрація:**
 ```bash
 POST /api/auth/register
 Content-Type: application/json
@@ -123,205 +186,154 @@ Content-Type: application/json
 }
 ```
 
-### Приклад: Відстеження води
+**Розпізнавання продукту через AI:**
+```bash
+POST /api/ai/recognize-product
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "productName": "банан" }
+```
+
+**Оновлення води:**
 ```bash
 PUT /api/analytics/daily
-Authorization: Bearer <your_token>
+Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "waterIntake": 2200,
-  "weight": 79.5,
-  "notes": "Відчував себе добре"
-}
+{ "waterIntake": 2200, "weight": 79.5, "notes": "Відчував себе добре" }
 ```
 
-### Приклад: Створення продукту через AI
-```bash
-POST /api/ai/create-product
-Authorization: Bearer <your_token>
-Content-Type: application/json
+## Тестування
 
-{
-  "productName": "банан"
-}
-```
+Детальна документація: [tests/README.md](tests/README.md)
 
-**Відповідь:**
-```json
-{
-  "success": true,
-  "data": {
-    "product": {
-      "name": "Банан",
-      "category": "fruits",
-      "nutritionPer100g": {
-        "calories": 89,
-        "protein": 1.1,
-        "fats": 0.3,
-        "carbs": 22.8
-      }
-    }
-  }
-}
-```
+### Важливо: тести використовують окрему БД
 
-## 📚 API Документація
+`db:reset`, `db:seed`, `db:clear` та workflow-тест завжди підключаються до `TEST_MONGODB_URI` (`nutriflow-test`), **не торкаючись основної бази**. Якщо `TEST_MONGODB_URI` не задано — скрипт завершиться з помилкою.
 
-### Основні endpoints
-
-#### Авторизація
-- `POST /api/auth/register` - Реєстрація
-- `POST /api/auth/login` - Логін
-- `GET /api/auth/profile` - Профіль користувача
-- `PUT /api/auth/profile` - Оновити профіль
-
-#### Продукти
-- `GET /api/products` - Список продуктів (пагінація, пошук, фільтри)
-- `GET /api/products/:id` - Деталі продукту
-- `POST /api/products` - Створити продукт
-- `PUT /api/products/:id` - Оновити продукт
-- `DELETE /api/products/:id` - Видалити продукт
-
-#### Прийоми їжі
-- `GET /api/meals` - Список прийомів їжі
-- `GET /api/meals/:id` - Деталі прийому їжі
-- `POST /api/meals` - Створити прийом їжі
-- `PUT /api/meals/:id` - Оновити прийом їжі
-- `DELETE /api/meals/:id` - Видалити прийом їжі
-
-#### Аналітика
-- `GET /api/analytics/daily` - Денний лог
-- `GET /api/analytics/weekly` - Тижнева статистика
-- `GET /api/analytics/monthly` - Місячна статистика
-- `GET /api/analytics/chart` - Дані для графіку
-- `PUT /api/analytics/daily` - Оновити води/вагу/нотатки
-
-#### AI
-- `POST /api/ai/create-product` - Створити продукт через AI
-- `GET /api/ai/suggestions` - Персоналізовані рекомендації
-- `POST /api/ai/analyze-daily` - Аналіз денного раціону
-- `POST /api/ai/analyze-weekly` - Аналіз тижневого раціону
-
-Повна документація: `http://localhost:5001/api-docs`
-
-## 🧪 Тестування
-
-Всі тести знаходяться в папці `tests/`. Детальна документація: [tests/README.md](tests/README.md)
-
-### Швидкий запуск тестів
+### Запуск тестів
 
 ```bash
-# Запустити всі основні тести
+# Скинути тестову БД та запустити
+npm run db:reset
 npm run test:all
 
-# Окремі тести
-npm run test:api          # API тестування (97.1% успіх)
-npm run test:water        # Відстеження води
-npm run test:validation   # Валідація
-npm run test:cache        # AI кешування (97.4% швидше)
-npm run test:ai           # AI створення продуктів
-npm run test:ai-suggestions # AI рекомендації
-npm run test:full         # Повний workflow
-```
-
-### Результати тестів
-
-| Тест | Успішність | Час |
-|------|------------|-----|
-| API тестування | 97.1% (34/35) | ~10-15s |
-| Відстеження води | 100% | ~5s |
-| Валідація | 100% | ~3s |
-| AI кешування | 100% | ~10s |
-| Повний workflow | 100% | ~30-60s |
-
-## 📜 Скрипти
-
-### Розробка
-```bash
-npm start           # Запустити сервер
-npm run dev         # Запустити з nodemon (auto-reload)
-```
-
-### База даних
-```bash
-npm run db:clear    # Очистити БД
-npm run db:seed     # Заповнити тестовими даними
-npm run db:reset    # Очистити + заповнити
-```
-
-### Тестування
-```bash
-npm run test:all           # Всі основні тести
-npm run test:api           # API тестування
+# Окремі тести (сервер на порту 5000)
+npm run test:api           # API + rate limiting
 npm run test:water         # Відстеження води
-npm run test:validation    # Валідація
+npm run test:validation    # Валідація вхідних даних
 npm run test:cache         # AI кешування
-npm run test:ai            # AI функції
-npm run test:full          # Повний workflow
+npm run test:ai            # AI розпізнавання продуктів
+npm run test:ai-suggestions  # AI рекомендації
+
+# Full workflow тест (потребує тестового сервера)
+npm run test:server        # термінал 1: сервер на порту 5001 + nutriflow-test
+npm run test:workflow      # термінал 2: повний E2E тест
 ```
 
-## 📂 Структура проекту
+### Результати
+
+| Тест | Успішність |
+|---|---|
+| test-api.js | 100% (35/35) |
+| test-water-tracking.js | 100% |
+| test-validation-direct.js | 100% |
+| test-cache.js | 100% |
+| test-ai.js | 100% |
+| test-ai-suggestions.js | 100% |
+| full-test.js | 100% (35/35) |
+
+## Скрипти
+
+```bash
+# Сервер
+npm start                  # запустити
+npm run dev                # запустити з nodemon
+
+# База даних (завжди TEST_MONGODB_URI)
+npm run db:clear           # очистити тестову БД
+npm run db:seed            # заповнити тестовими даними
+npm run db:reset           # очистити + заповнити
+
+# Тестування
+npm run test:server        # тестовий сервер (порт 5001, nutriflow-test)
+npm run test:all           # api + water + validation + cache
+npm run test:api           # API endpoints
+npm run test:water         # відстеження води
+npm run test:validation    # валідація
+npm run test:cache         # AI кешування
+npm run test:ai            # AI продукти
+npm run test:ai-suggestions  # AI рекомендації
+npm run test:full          # повний workflow (порт 5000)
+npm run test:workflow      # повний E2E (порт 5001)
+```
+
+## Тестові облікові записи
+
+Після `npm run db:reset`:
+
+| Email | Пароль | Профіль |
+|---|---|---|
+| olena@example.com | Test123 | Жінка, 28 р., мета: схуднути |
+| andriy@example.com | Test123 | Чоловік, 32 р., мета: набрати м'язи |
+| maria@example.com | Test123 | Жінка, 25 р., мета: підтримка ваги |
+
+## Структура проекту
 
 ```
 NutriFlow-server/
 ├── config/
-│   ├── db.js              # MongoDB підключення
-│   ├── indexes.js         # Індекси БД
-│   └── swagger.js         # Swagger конфігурація
-├── controllers/           # Контролери endpoints
+│   ├── db.js                    # MongoDB підключення
+│   ├── indexes.js               # Індекси БД
+│   └── swagger.js               # Swagger конфігурація
+├── controllers/
 │   ├── authController.js
 │   ├── productController.js
 │   ├── mealController.js
 │   ├── analyticsController.js
 │   └── aiController.js
 ├── middleware/
-│   ├── auth.js            # JWT авторизація
-│   ├── errorHandler.js    # Обробка помилок
-│   ├── rateLimiter.js     # Rate limiting
-│   └── validators/        # Валідація даних
-├── models/                # Mongoose моделі
+│   ├── auth.js                  # JWT авторизація
+│   ├── errorHandler.js
+│   ├── rateLimiter.js           # general / auth / AI ліміти
+│   └── validators/
+├── models/
 │   ├── User.js
 │   ├── Product.js
 │   ├── Meal.js
 │   └── DailyLog.js
-├── routes/                # API роути
+├── routes/
 │   ├── authRoutes.js
 │   ├── productRoutes.js
 │   ├── mealRoutes.js
 │   ├── analyticsRoutes.js
 │   └── aiRoutes.js
-├── scripts/               # Утиліти БД
-│   ├── clear-db.js
-│   ├── seed.js
-│   └── README.md
-├── services/              # Бізнес логіка
-│   ├── aiCache.js         # AI кешування
-│   ├── aiService.js       # AI сервіс (unified)
-│   ├── huggingFaceService.js
-│   ├── calculationService.js
+├── scripts/
+│   ├── clear-db.js              # очищення тестової БД
+│   ├── seed.js                  # заповнення тестовими даними
+│   ├── full-workflow-test.js    # E2E тест
+│   └── start-test-server.js    # сервер для workflow-тесту
+├── services/
+│   ├── aiService.js             # retry + кешування
+│   ├── huggingFaceService.js    # Groq API клієнт
+│   ├── aiCache.js               # node-cache обгортка
+│   ├── calculationService.js    # BMR / TDEE / макроси
 │   └── recommendationService.js
-├── tests/                 # Тести
+├── tests/
+│   ├── README.md
 │   ├── test-api.js
+│   ├── test-ai.js
+│   ├── test-ai-suggestions.js
+│   ├── test-cache.js
 │   ├── test-water-tracking.js
 │   ├── test-validation-direct.js
-│   ├── test-cache.js
-│   └── README.md
+│   └── full-test.js
 ├── utils/
-│   └── pagination.js      # Утиліта пагінації
-├── .env                   # Змінні середовища
-├── server.js              # Entry point
-├── package.json
-├── README.md              # Ця документація
-└── WATER_TRACKING.md      # Документація відстеження води
+│   └── pagination.js
+├── .env                         # не комітити
+├── .env.example                 # шаблон змінних
+├── render.yaml                  # конфіг для Render
+├── server.js
+└── package.json
 ```
-
-## 🔑 Тестові облікові записи
-
-Після запуску `npm run db:reset`:
-
-| Email | Пароль | Профіль |
-|-------|--------|---------|
-| olena@example.com | Test123 | Жінка, 28 років, ціль: схуднути |
-| andriy@example.com | Test123 | Чоловік, 32 роки, ціль: набрати м'язи |
-| maria@example.com | Test123 | Жінка, 25 років, ціль: підтримка ваги |

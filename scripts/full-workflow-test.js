@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const http = require('http');
 require('dotenv').config();
 
+const API_PORT = Number(process.env.TEST_API_PORT || 5001);
+
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Meal = require('../models/Meal');
@@ -11,7 +13,7 @@ const makeRequest = (method, path, data = null, token = null) => {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'localhost',
-      port: 5001,  
+      port: API_PORT,
       path,
       method,
       headers: {
@@ -65,9 +67,16 @@ const makeRequest = (method, path, data = null, token = null) => {
 async function runFullWorkflow() {
   console.log('🚀 ===== NUTRIFLOW FULL WORKFLOW TEST =====\n');
 
+  const testUri = process.env.TEST_MONGODB_URI;
+  if (!testUri || !testUri.includes('test')) {
+    console.error('❌ TEST_MONGODB_URI не знайдено або не містить "test". Перевірте .env');
+    process.exit(1);
+  }
+
   try {
-    console.log('1️⃣  Clearing database...');
-    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('1️⃣  Clearing TEST database...');
+    await mongoose.connect(testUri);
+    console.log(`   DB: ${mongoose.connection.name}`);
 
     await User.deleteMany({});
     await Product.deleteMany({});
@@ -230,10 +239,10 @@ async function runFullWorkflow() {
   }
 }
 
-console.log('Checking if server is running on port 5001...');
+console.log(`Checking if server is running on port ${API_PORT}...`);
 const checkServer = http.request({
   hostname: 'localhost',
-  port: 5001,
+  port: API_PORT,
   path: '/',
   method: 'GET',
   timeout: 5000

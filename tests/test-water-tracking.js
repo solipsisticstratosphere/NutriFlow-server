@@ -1,10 +1,12 @@
 const http = require('http');
 
+const API_PORT = Number(process.env.TEST_API_PORT || process.env.PORT || 5000);
+
 const makeRequest = (method, path, data = null, token = null) => {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'localhost',
-      port: 5001,
+      port: API_PORT,
       path,
       method,
       headers: { 'Content-Type': 'application/json' }

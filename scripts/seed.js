@@ -96,11 +96,25 @@ const products = [
   { name: 'Олія оливкова', category: 'other', nutritionPer100g: { calories: 884, protein: 0, fats: 100, carbs: 0, fiber: 0 }, isPublic: true }
 ];
 
+const uri = process.env.TEST_MONGODB_URI;
+
+if (!uri) {
+  console.error('❌ TEST_MONGODB_URI не знайдено в .env');
+  console.error('   Додайте TEST_MONGODB_URI=...nutriflow-test... у файл .env');
+  process.exit(1);
+}
+
+if (!uri.includes('test')) {
+  console.error('❌ TEST_MONGODB_URI не містить "test" у назві бази даних.');
+  console.error('   Переконайтеся, що URI вказує на тестову базу (наприклад: nutriflow-test)');
+  process.exit(1);
+}
+
 const seedDatabase = async () => {
   try {
-    console.log('🔌 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB\n');
+    console.log('🔌 Connecting to TEST MongoDB...');
+    await mongoose.connect(uri);
+    console.log(`✅ Connected to: ${mongoose.connection.name}\n`);
 
 
     console.log('🗑️  Clearing existing data...');

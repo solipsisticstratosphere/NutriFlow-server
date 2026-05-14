@@ -1,11 +1,13 @@
 const http = require('http');
 
+const API_PORT = Number(process.env.TEST_API_PORT || process.env.PORT || 5000);
+
 const makeRequest = (path, token) => {
   return new Promise((resolve) => {
     const start = Date.now();
     const req = http.request({
       hostname: 'localhost',
-      port: 5001,
+      port: API_PORT,
       path,
       headers: { 'Authorization': `Bearer ${token}` }
     }, (res) => {
@@ -24,7 +26,7 @@ const login = () => {
   return new Promise((resolve) => {
     const req = http.request({
       hostname: 'localhost',
-      port: 5001,
+      port: API_PORT,
       path: '/api/auth/login',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }

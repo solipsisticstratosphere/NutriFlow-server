@@ -1,10 +1,12 @@
 const http = require('http');
 
+const API_PORT = Number(process.env.TEST_API_PORT || process.env.PORT || 5000);
+
 const makeRequest = (method, path, data = null) => {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'localhost',
-      port: 5001,
+      port: API_PORT,
       path,
       method,
       headers: {
@@ -116,7 +118,7 @@ async function runTests() {
       console.log('5️⃣  Testing protected route /api/auth/me...');
       const meReq = http.request({
         hostname: 'localhost',
-        port: 5001,
+        port: API_PORT,
         path: '/api/auth/me',
         method: 'GET',
         headers: {
@@ -151,7 +153,7 @@ async function continueTests(token) {
     console.log('6️⃣  Testing product creation...');
     const productReq = http.request({
       hostname: 'localhost',
-      port: 5001,
+      port: API_PORT,
       path: '/api/products',
       method: 'POST',
       headers: {
@@ -176,7 +178,7 @@ async function continueTests(token) {
 
     const productData = JSON.stringify({
       name: 'Test Banana',
-      category: 'Fruits',
+      category: 'fruits',
       nutritionPer100g: {
         calories: 89,
         protein: 1.1,
@@ -193,7 +195,7 @@ async function continueTests(token) {
       console.log('7️⃣  Testing products pagination...');
       const productsReq = http.request({
         hostname: 'localhost',
-        port: 5001,
+        port: API_PORT,
         path: '/api/products?page=1&limit=10',
         method: 'GET',
         headers: {

@@ -1,105 +1,30 @@
-const https = require('https');
+const Groq = require('groq-sdk');
 
+const GROQ_MODEL = 'llama-3.1-8b-instant';
 
-const HF_ROUTER_URL = 'https://router.huggingface.co/v1';
-
-const HF_MODEL = 'Qwen/Qwen2.5-7B-Instruct';
+const getGroqClient = () => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY не знайдено в .env');
+  return new Groq({ apiKey });
+};
 
 const callHuggingFaceAPIWithMessages = async (systemPrompt, userPrompt) => {
-  return new Promise((resolve, reject) => {
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
-    
-    if (!apiKey) {
-      reject(new Error('HUGGINGFACE_API_KEY не найден в .env'));
-      return;
-    }
+  const groq = getGroqClient();
 
-    const messages = [];
-    if (systemPrompt) {
-      messages.push({ role: 'system', content: systemPrompt });
-    }
-    messages.push({ role: 'user', content: userPrompt });
+  const messages = [];
+  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+  messages.push({ role: 'user', content: userPrompt });
 
-    let data;
-    try {
-      data = JSON.stringify({
-        model: HF_MODEL,
-        messages: messages,
-        max_tokens: 2000,
-        temperature: 0.7
-      });
-      
-      JSON.parse(data);
-    } catch (stringifyError) {
-      console.error('JSON.stringify/parse error:', stringifyError);
-      console.error('System prompt length:', systemPrompt?.length || 0);
-      console.error('User prompt length:', userPrompt?.length || 0);
-      console.error('User prompt preview:', userPrompt?.substring(0, 200));
-      reject(new Error(`Failed to stringify request: ${stringifyError.message}`));
-      return;
-    }
-
-    const options = {
-      hostname: 'router.huggingface.co',
-      path: '/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Length': Buffer.byteLength(data, 'utf8')
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => {
-        body += chunk;
-      });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(body);
-          
-          if (res.statusCode === 200) {
-            if (parsed.choices && parsed.choices.length > 0) {
-              const content = parsed.choices[0].message?.content || parsed.choices[0].text || '';
-              resolve(content);
-            } else if (parsed.generated_text) {
-              resolve(parsed.generated_text);
-            } else if (parsed.text) {
-              resolve(parsed.text);
-            } else {
-              resolve(JSON.stringify(parsed));
-            }
-          } else if (res.statusCode === 503) {
-            reject(new Error('Модель загружается, попробуйте через несколько секунд'));
-          } else {
-            const errorMsg = parsed.error?.message || parsed.error || body;
-            console.error(`Hugging Face API Error ${res.statusCode}:`, errorMsg);
-            console.error('Full response:', body.substring(0, 500));
-            if (res.statusCode === 400 && errorMsg.includes('JSON')) {
-              console.error('Request data length:', data.length);
-              console.error('Request data preview:', data.substring(0, 300));
-            }
-            reject(new Error(`API Error: ${res.statusCode} - ${errorMsg}`));
-          }
-        } catch (e) {
-          reject(new Error(`Parse error: ${e.message}. Response: ${body.substring(0, 200)}`));
-        }
-      });
-    });
-
-    req.on('error', (error) => {
-      reject(error);
-    });
-
-    req.write(data);
-    req.end();
+  const response = await groq.chat.completions.create({
+    model: GROQ_MODEL,
+    messages,
+    max_tokens: 2000,
+    temperature: 0.7
   });
+
+  return response.choices[0].message.content;
 };
 
-const callHuggingFaceAPI = async (prompt) => {
-  return callHuggingFaceAPIWithMessages(null, prompt);
-};
 
 const parseJSONResponse = (response) => {
   if (!response || typeof response !== 'string') {

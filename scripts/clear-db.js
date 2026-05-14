@@ -6,15 +6,28 @@ const Product = require('../models/Product');
 const Meal = require('../models/Meal');
 const DailyLog = require('../models/DailyLog');
 
+const uri = process.env.TEST_MONGODB_URI;
+
+if (!uri) {
+  console.error('❌ TEST_MONGODB_URI не знайдено в .env');
+  console.error('   Додайте TEST_MONGODB_URI=...nutriflow-test... у файл .env');
+  process.exit(1);
+}
+
+if (!uri.includes('test')) {
+  console.error('❌ TEST_MONGODB_URI не містить "test" у назві бази даних.');
+  console.error('   Переконайтеся, що URI вказує на тестову базу (наприклад: nutriflow-test)');
+  process.exit(1);
+}
+
 const clearDatabase = async () => {
   try {
-    console.log('🔌 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB\n');
+    console.log('🔌 Connecting to TEST MongoDB...');
+    await mongoose.connect(uri);
+    console.log(`✅ Connected to: ${mongoose.connection.name}\n`);
 
-    console.log('🗑️  Clearing database...\n');
+    console.log('🗑️  Clearing test database...\n');
 
-  
     const collections = [
       { name: 'Users', model: User },
       { name: 'Products', model: Product },
@@ -28,7 +41,7 @@ const clearDatabase = async () => {
       console.log(`   ✓ Deleted ${count} ${collection.name}`);
     }
 
-    console.log('\n✅ Database cleared successfully!\n');
+    console.log('\n✅ Test database cleared successfully!\n');
 
     await mongoose.connection.close();
     process.exit(0);

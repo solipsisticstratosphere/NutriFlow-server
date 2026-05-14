@@ -75,7 +75,7 @@ const createProductFromAI = async (req, res) => {
                           (Object.values(categoryMapping).includes(aiCategory) ? aiCategory : 'other');
 
     const product = await Product.create({
-      name: aiResult.data.name,
+      name: productName.trim(),
       category: mappedCategory,
       nutritionPer100g: aiResult.data.nutritionPer100g,
       userId: req.user._id,

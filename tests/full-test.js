@@ -1,5 +1,7 @@
 const http = require('http');
 
+const API_PORT = Number(process.env.TEST_API_PORT || process.env.PORT || 5000);
+
 let authToken = '';
 let testProductId = '';
 let testMealId = '';
@@ -8,7 +10,7 @@ const request = (method, path, data = null, token = null) => {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'localhost',
-      port: 5001,
+      port: API_PORT,
       path,
       method,
       headers: { 'Content-Type': 'application/json' }
@@ -187,20 +189,8 @@ async function runFullTests() {
     }
     console.log();
 
-    // 6. RATE LIMITING TEST
-    console.log('⏱️  6. RATE LIMITING TEST');
-    const rateLimitRequests = [];
-    for (let i = 0; i < 110; i++) {
-      rateLimitRequests.push(request('GET', '/', null, authToken));
-    }
-    const results = await Promise.all(rateLimitRequests);
-    const blocked = results.filter(r => r.status === 429).length;
-    test('Rate limiter blocks after 100 requests', blocked > 0);
-    console.log(`   (Made 110 requests, ${blocked} blocked)`);
-    console.log();
-
-    // 7. ERROR HANDLING TEST
-    console.log('❌ 7. ERROR HANDLING TESTS');
+    // 6. ERROR HANDLING TESTS
+    console.log('6. ERROR HANDLING TESTS');
     const invalidId = await request('GET', '/api/products/invalid-id', null, authToken);
     test('Returns 400 for invalid MongoDB ID', invalidId.status === 400);
 
@@ -211,8 +201,8 @@ async function runFullTests() {
     test('Returns 401 for invalid token', invalidToken.status === 401);
     console.log();
 
-    // 8. DATABASE OPTIMIZATION TEST
-    console.log('⚡ 8. PERFORMANCE & OPTIMIZATION');
+    // 7. PERFORMANCE
+    console.log('⚡ 7. PERFORMANCE & OPTIMIZATION');
     const startTime = Date.now();
     await request('GET', '/api/products?page=1&limit=20', null, authToken);
     const endTime = Date.now();
@@ -220,8 +210,8 @@ async function runFullTests() {
     console.log(`   (Query time: ${endTime - startTime}ms)`);
     console.log();
 
-    // CLEANUP
-    console.log('🧹 CLEANUP');
+    // 8. CLEANUP
+    console.log('🧹 8. CLEANUP');
     if (testMealId) {
       const deleteMeal = await request('DELETE', `/api/meals/${testMealId}`, null, authToken);
       test('Meal deletion successful', deleteMeal.status === 200);
@@ -230,6 +220,19 @@ async function runFullTests() {
       const deleteProduct = await request('DELETE', `/api/products/${testProductId}`, null, authToken);
       test('Product deletion successful', deleteProduct.status === 200);
     }
+    console.log();
+
+    // 9. RATE LIMITING (last: exhausts /api/ budget for this IP)
+    console.log('⏱️  9. RATE LIMITING TEST');
+    const rateLimitRequests = [];
+    for (let i = 0; i < 110; i++) {
+      rateLimitRequests.push(request('GET', '/api/auth/me', null, authToken));
+    }
+    const results = await Promise.all(rateLimitRequests);
+    const blocked = results.filter(r => r.status === 429).length;
+    test('Rate limiter blocks after 100 requests', blocked > 0);
+    console.log(`   (Made 110 requests, ${blocked} blocked)`);
+    console.log();
 
     // RESULTS
     console.log('\n' + '='.repeat(50));
