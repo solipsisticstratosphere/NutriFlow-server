@@ -1,4 +1,4 @@
-// Використовуємо unified AI service з кешуванням та fallback на Gemini
+
 const {
   analyzeProductByName,
   analyzeDailyDiet,
@@ -53,7 +53,6 @@ const createProductFromAI = async (req, res) => {
       return res.status(400).json(aiResult);
     }
 
-    // Маппінг українських категорій на англійські enum значення
     const categoryMapping = {
       'овочі': 'vegetables',
       'фрукти': 'fruits',
